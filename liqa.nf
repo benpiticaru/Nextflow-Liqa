@@ -1,15 +1,15 @@
 #!/usr/bin/env nextflow
 
-params.fast5 = "/home/bdpitica/scratch/mRNA_isoform/minion_combined/pod5"
-params.sample_sheet = "/home/bdpitica/scratch/mRNA_isoform/reference/liqa_reference.tsv"
+params.fast5 = "{pathway}/pod5"
+params.sample_sheet = "{pathway}/liqa_reference.tsv"
 params.phred_score = 10
 params.q_score = 60
 params.outdir = "liqa.output"
 params.basecalling = false
-params.fastq_dir = "/home/bdpitica/scratch/mRNA_isoform/guppy.combined.out/pass"
-params.reference_gtf = "/home/bdpitica/scratch/mRNA_isoform/reference/Homo_sapiens_GRCh38_110.gtf"
-params.reference_fna = "/home/bdpitica/scratch/mRNA_isoform/reference/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
-params.reference_bed = "/home/bdpitica/scratch/mRNA_isoform/reference/Homo_sapiens_GRCh38_110.bed"
+params.fastq_dir = "{pathway}/guppy.combined.out/pass"
+params.reference_gtf = "{pathway}/Homo_sapiens_GRCh38_110.gtf"
+params.reference_fna = "{pathway}/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
+params.reference_bed = "{pathway}/Homo_sapiens_GRCh38_110.bed"
 
 process basecalling {
     label 'basecalling'
