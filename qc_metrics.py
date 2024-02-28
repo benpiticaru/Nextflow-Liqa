@@ -104,6 +104,9 @@ def create_scatterplot(scatterplot_list,data_type,threshold):
 def create_histogram(scatterplot_list,data_type):
     bin_ranges = [0, 2, 4, 6, 8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40]
     read_lengths, avg_phred_scores = zip(*scatterplot_list)
+    rs = pd.Series(read_lengths)
+    ps = pd.Series(avg_phred_scores)
+    print(data_type,rs.describe(),ps.describe())
     plt.figure(figsize=(10, 6))
     plt.hist(avg_phred_scores, bins=bin_ranges, edgecolor='black')
     plt.ylim(0,2000000)
