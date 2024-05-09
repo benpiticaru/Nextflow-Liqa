@@ -1,5 +1,6 @@
 #!/usr/bin/env nextflow
 
+
 params.fast5 = "{pathway}/pod5"
 params.sample_sheet = "{pathway}/liqa_reference.tsv"
 params.phred_score = 10
@@ -82,7 +83,7 @@ process removeAdaptors {
     porechop -i "${sample_id}.combined.fastq" -o "trimmed.fastq" --threads ${task.cpus}
 
 
-    echo -ne "${sample_id}\t${cell_line}\t${condition}\t${replicate}\t${baseDir}/${params.outdir}/raw_reads/${sample_id}.combined.fastq" > "locations.tsv"
+    echo -ne "${sample_id}\t${cell_line}\t${condition}\t${replicate}\t\$PWD/${sample_id}.combined.fastq" > "locations.tsv"
     """
 }
 
@@ -102,7 +103,7 @@ process preprocessingReads {
 
     cat ${fastq_file} | chopper --threads ${task.cpus} --quality ${params.phred_score} > ${sample_id}.preprocessed_reads.fastq
 
-    echo -ne "\t${baseDir}/${params.outdir}/preprocessed/${sample_id}.preprocessed_reads.fastq" >> ${locations_tsv}
+    echo -ne "\t\$PWD/${sample_id}.preprocessed_reads.fastq" >> ${locations_tsv}
     """
 }
 
@@ -122,9 +123,9 @@ process alignAndSort {
 
     script:
     """
-    minimap2 -t ${task.cpus} -ax splice  --junc-bed ${reference_bed} ${reference_fasta} ${fastq_file} | samtools sort -@ ${task.cpus} | samtools view -@ ${task.cpus} - -F 2308 -q ${params.q_score} -O BAM -o ${sample_id}.bam
+    minimap2 -t ${task.cpus} -ax splice  --junc-bed ${reference_bed} ${reference_fasta} ${fastq_file} | samtools sort -@ ${task.cpus} | samtools view -@ ${task.cpus} - -F 260 -q ${params.q_score} -O BAM -o ${sample_id}.bam
     samtools index -@ ${task.cpus} ${sample_id}.bam
-    echo -ne "\t${baseDir}/${params.outdir}/alignments/${sample_id}.bam\t${baseDir}/${params.outdir}/alignments/${sample_id}.bam.bai" >> ${locations_tsv}
+    echo -ne "\t\$PWD/${sample_id}.bam\t\$PWD/${sample_id}.bam.bai" >> ${locations_tsv}
     """
 }
 
@@ -146,7 +147,7 @@ process quantifyIsoforms {
     """
     liqa -task quantify -refgene ${refgene_file} -bam ${bam_file} -out ${sample_id}.isoform_expression_estimates -max_distance 20 -f_weight 1
 
-    echo -ne "\t${baseDir}/${params.outdir}/estimates/${sample_id}.isoform_expression_estimates" >> ${locations_tsv}
+    echo -ne "\t\$PWD/${sample_id}.isoform_expression_estimates" >> ${locations_tsv}
     """
 }
 
@@ -201,8 +202,6 @@ process readsAnalysis {
 process makeconditionfiles {
     executor = "local"
 
-    publishDir "${params.outdir}/reference", mode: 'copy', pattern: "*_isoform_expression_estimates.txt"
-
     input:
         file locations_tsv
 
@@ -215,6 +214,7 @@ process makeconditionfiles {
     python3 - <<EOF
     import pandas as pd
     import sys
+    import os
     
     df = pd.read_csv("${locations_tsv}",sep='\t',header=0)
 
@@ -235,11 +235,29 @@ process makeconditionfiles {
     
     unique_cell_lines = condensed_df['cell_line'].unique()
     unique_cell_lines_df = pd.DataFrame(unique_cell_lines, columns=['cell_line'])
-
+    cwd = os.getcwd()
     for index, row in unique_cell_lines_df.iterrows():
-        unique_cell_lines_df.at[index,"control_filename"] = "${baseDir}" + "/" + "${params.outdir}" + f"/reference/{row.cell_line}_control_isoform_expression_estimates.txt"
-        unique_cell_lines_df.at[index,"treatment_filename"] = "${baseDir}" + "/" + "${params.outdir}" + f"/reference/{row.cell_line}_treatment_isoform_expression_estimates.txt"
+        unique_cell_lines_df.at[index,"control_filename"] = f"{cwd}/{row.cell_line}_control_isoform_expression_estimates.txt"
+        unique_cell_lines_df.at[index,"treatment_filename"] = f"{cwd}/{row.cell_line}_treatment_isoform_expression_estimates.txt"
     
+    df = unique_cell_lines_df.copy()
+
+    comparison_data = []
+
+    for i, cell_line_1 in enumerate(df['cell_line'].unique()):
+        control_filenames_1 = df.loc[df['cell_line'] == cell_line_1, 'control_filename'].unique()
+        for control_filename_1 in control_filenames_1:
+            for cell_line_2 in df['cell_line'].unique()[i+1:]:
+                comparison_control_filenames = df.loc[(df['cell_line'] == cell_line_2), 'control_filename'].unique()
+                for comparison_control_filename in comparison_control_filenames:
+                    comparison_data.append({
+                        'cell_line': f'{cell_line_1}_vs_{cell_line_2}',
+                        'control_filename': control_filename_1,
+                        'treatment_filename': comparison_control_filename
+                    })
+    comparison_df = pd.DataFrame(comparison_data)
+    comparison_df = pd.concat([df, comparison_df], ignore_index=True)
+
     unique_cell_lines_df.to_csv("locations.tsv",sep='\t',header=True,index=False)
     
     EOF
@@ -363,10 +381,5 @@ workflow {
         .map { row -> tuple( row.cell_line,row.control_filename,row.treatment_filename ) }
         .set { results_ch }
     liqaDiff(results_ch)
-<<<<<<< HEAD
     goAnalysis(liqaDiff.out)
 }
-=======
-
-}
->>>>>>> 1b725c2fa1de71afeb15e754f758e78e1143af0f
