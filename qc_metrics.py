@@ -111,7 +111,7 @@ def create_histogram(scatterplot_list,data_type):
     plt.hist(avg_phred_scores, bins=bin_ranges, edgecolor='black')
     plt.ylim(0,2000000)
     plt.title('')
-    plt.xlabel('Values')
+    plt.xlabel('Phred Score')
     plt.ylabel('Frequency')
     plt.savefig(f"{data_type}_Phred_score_histogram.png", format="png")
 
@@ -143,7 +143,7 @@ def read_analysis(location,threshold):
         df.at[index, "avg_phred_scores"] = avg_phred_scores
         scatterplot_list.extend(results)
 
-    df.to_csv("sequenced_amounts.tsv",sep='\t',columns=["sample_id","basecalled_reads","processed_reads","mapped_reads"])
+    df.to_csv("sequenced_amounts.tsv",sep='\t',columns=["sample_id","basecalled_reads","processed_reads","mapped_reads"],index=False)
 
     create_scatterplot(scatterplot_list,"raw",threshold)
     create_histogram(scatterplot_list,"raw")
