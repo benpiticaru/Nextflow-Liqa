@@ -309,7 +309,7 @@ process goAnalysis {
             df = pd.read_csv(results_file_path, sep="\t", header=None, names=["gene_name", "p-value"])
             _, q_values, _, _ = multitest.multipletests(df['p-value'], alpha=significance_level, method='fdr_bh')
             df['q-value'] = q_values
-            df = df.sort_values(by="p-value").query("`q-value` < @significance_level").sort_values(by="q-value")
+            df = df.sort_values(by="p-value").query("q_value < @significance_level")
             df.to_csv(f"{cell_line}_adj_p-values.tsv", sep='\t', index=False)
             
             gp = GProfiler(return_dataframe=True)
@@ -339,7 +339,7 @@ process goAnalysis {
             plt.savefig(f"{cell_line}_GO_analysis.png", format="png", bbox_inches="tight")
             plt.close()
 
-        analyze_and_plot_gene_data(${results_file},${cell_line})
+        analyze_and_plot_gene_data("${results_file}","${cell_line}")
 
         EOF
         /$
