@@ -7,6 +7,16 @@ import argparse
 from Bio import SeqIO
 
 def count_genes(bam_file):
+    """
+    Count the number of reads mapped to each gene in a BAM file.
+
+    Args:
+        bam_file (str): Path to the BAM file.
+
+    Returns:
+        tuple: A dictionary with gene names as keys and read counts as values,
+               and a list of read lengths.
+    """
     gene_counts = {}
     print(bam_file)
     with pysam.AlignmentFile(bam_file, "rb") as bam:
@@ -20,6 +30,15 @@ def count_genes(bam_file):
     return gene_counts , lengths
 
 def exploring_bam(location):
+    """
+    Analyze BAM files listed in a TSV file and generate gene count plots.
+
+    Args:
+        location (str): Path to the TSV file containing sample metadata and BAM file paths.
+
+    Returns:
+        None
+    """
     df = pd.read_csv(location,sep='\t',header=0)
     df[['cell_line', 'condition', 'replicate']] = df['sample_id'].str.split('_', expand=True)
     multi_index_df = df.set_index(['cell_line', 'condition', 'replicate'])
@@ -58,6 +77,15 @@ def exploring_bam(location):
     plt.close()
 
 def count_unique_mapped_reads(bam_file_path):
+    """
+    Count the number of uniquely mapped reads in a BAM file.
+
+    Args:
+        bam_file_path (str): Path to the BAM file.
+
+    Returns:
+        int: Count of uniquely mapped reads.
+    """
     input_bam = pysam.AlignmentFile(bam_file_path, "rb")
     unique_mapped_count = 0
     for read in input_bam:
@@ -67,10 +95,27 @@ def count_unique_mapped_reads(bam_file_path):
     return unique_mapped_count
 
 def calculate_average_phred_score(qualities):
+    """
+    Calculate the average Phred quality score for a list of quality scores.
+
+    Args:
+        qualities (list): List of Phred quality scores.
+
+    Returns:
+        float: Average Phred quality score.
+    """
     return sum(qualities) / len(qualities)
 
 def process_fastq_file(file_path):
-    """Read a FASTQ file and return a list of tuples (read_length, average_phred_score)."""
+    """
+    Process a FASTQ file to extract read lengths and average Phred scores.
+
+    Args:
+        file_path (str): Path to the FASTQ file.
+
+    Returns:
+        list: List of tuples containing read lengths and average Phred scores.
+    """
     results = []
 
     with open(file_path, 'r') as fastq_file:
@@ -80,8 +125,18 @@ def process_fastq_file(file_path):
             results.append((read_length, avg_phred_score))
     return results
 
-def create_scatterplot(scatterplot_list,data_type,threshold):
-    """Create a scatterplot from the list of tuples."""
+def create_scatterplot(scatterplot_list, data_type, threshold):
+    """
+    Create a scatterplot of read lengths vs. average Phred scores.
+
+    Args:
+        scatterplot_list (list): List of tuples (read_length, average_phred_score).
+        data_type (str): Type of data being plotted (e.g., 'processed', 'raw').
+        threshold (int): Phred score threshold for visualization.
+
+    Returns:
+        None
+    """
     read_lengths, avg_phred_scores = zip(*scatterplot_list)
     avg_phred_scores = np.array(avg_phred_scores)  # Convert to NumPy array
 
@@ -101,7 +156,17 @@ def create_scatterplot(scatterplot_list,data_type,threshold):
     plt.savefig(f"{data_type}_scatterplot.png", format="png")
     plt.close()
 
-def create_histogram(scatterplot_list,data_type):
+def create_histogram(scatterplot_list, data_type):
+    """
+    Create a histogram of average Phred scores.
+
+    Args:
+        scatterplot_list (list): List of tuples (read_length, average_phred_score).
+        data_type (str): Type of data being plotted (e.g., 'processed', 'raw').
+
+    Returns:
+        None
+    """
     bin_ranges = [0, 2, 4, 6, 8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40]
     read_lengths, avg_phred_scores = zip(*scatterplot_list)
     rs = pd.Series(read_lengths)
@@ -115,7 +180,17 @@ def create_histogram(scatterplot_list,data_type):
     plt.ylabel('Frequency')
     plt.savefig(f"{data_type}_Phred_score_histogram.png", format="png")
 
-def read_analysis(location,threshold):
+def read_analysis(location, threshold):
+    """
+    Perform read analysis on FASTQ files listed in a TSV file.
+
+    Args:
+        location (str): Path to the TSV file containing sample metadata and FASTQ file paths.
+        threshold (int): Phred score threshold for visualization.
+
+    Returns:
+        None
+    """
     df = pd.read_csv(location,sep='\t',header=0)
     # Create an empty column to store the results in the DataFrame
     df["read_lengths"] = None
@@ -171,6 +246,9 @@ def read_analysis(location,threshold):
 
 
 if __name__ == "__main__":
+    """
+    Main entry point for the script. Parses command-line arguments and runs the analysis.
+    """
     parser = argparse.ArgumentParser(description='Read and display a TSV file.')
     parser.add_argument('file_path', metavar='path', type=str, help='Path to the TSV file')
     parser.add_argument('threshold', type=int, help='value of phred cutoff')

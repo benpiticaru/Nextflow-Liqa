@@ -1,6 +1,6 @@
 #!/usr/bin/env nextflow
 
-
+// Define the pipeline parameters
 params.fast5 = "{pathway}/pod5"
 params.sample_sheet = "{pathway}/liqa_reference.tsv"
 params.phred_score = 10
@@ -12,7 +12,13 @@ params.reference_gtf = "{pathway}/Homo_sapiens_GRCh38_110.gtf"
 params.reference_fna = "{pathway}/Homo_sapiens.GRCh38.dna.primary_assembly.fa"
 params.reference_bed = "{pathway}/Homo_sapiens_GRCh38_110.bed"
 
+// Basecalling process
 process basecalling {
+    """
+    Converts raw signal data into nucleotide sequences using Guppy.
+    Input: Raw sequencing data files.
+    Output: Basecalled FASTQ files.
+    """
     label 'basecalling'
 
     publishDir "${params.outdir}/basecalling", mode: 'copy'
@@ -39,8 +45,13 @@ process basecalling {
     """
 }
 
-
-process makeRefgene{
+// Reference generation process
+process makeRefgene {
+    """
+    Generates a reference file for isoform quantification using LIQA.
+    Input: Reference GTF file.
+    Output: Reference refgene file.
+    """
     executor="local"
 
     input:
@@ -58,7 +69,13 @@ process makeRefgene{
     """
 }
 
+// Adapter removal process
 process removeAdaptors {
+    """
+    Removes adapters from raw reads using Porechop.
+    Input: Raw FASTQ files.
+    Output: Trimmed FASTQ files and locations TSV.
+    """
     label "remove_adaptor"
 
     publishDir "${params.outdir}/raw_reads", mode: 'copy', pattern: "${sample_id}.combined.fastq"
@@ -82,12 +99,17 @@ process removeAdaptors {
 
     porechop -i "${sample_id}.combined.fastq" -o "trimmed.fastq" --threads ${task.cpus}
 
-
     echo -ne "${sample_id}\t${cell_line}\t${condition}\t${replicate}\t\$PWD/${sample_id}.combined.fastq" > "locations.tsv"
     """
 }
 
+// Read preprocessing process
 process preprocessingReads {
+    """
+    Trims adapters and filters low-quality reads using Chopper.
+    Input: Trimmed FASTQ files.
+    Output: Preprocessed FASTQ files.
+    """
     label "preprocessing"
 
     publishDir "${params.outdir}/preprocessed", mode: 'copy', pattern: "${sample_id}.preprocessed_reads.fastq"
@@ -100,14 +122,19 @@ process preprocessingReads {
 
     script:
     """
-
     cat ${fastq_file} | chopper --threads ${task.cpus} --quality ${params.phred_score} > ${sample_id}.preprocessed_reads.fastq
 
     echo -ne "\t\$PWD/${sample_id}.preprocessed_reads.fastq" >> ${locations_tsv}
     """
 }
 
+// Alignment process
 process alignAndSort {
+    """
+    Aligns reads to a reference genome using Minimap2 and sorts the alignments with Samtools.
+    Input: Preprocessed FASTQ files and reference genome.
+    Output: Sorted BAM files and index.
+    """
     label "aligning"
 
     publishDir "${params.outdir}/alignments", mode: 'copy', pattern: "${sample_id}.bam*"
@@ -129,7 +156,13 @@ process alignAndSort {
     """
 }
 
+// Isoform quantification process
 process quantifyIsoforms {
+    """
+    Quantifies isoforms and alternative splicing events using LIQA.
+    Input: Sorted BAM files and reference refgene file.
+    Output: Isoform quantification results.
+    """
     label "liqa"
 
     publishDir "${params.outdir}/estimates", mode: 'copy', pattern: "${sample_id}.isoform_expression_estimates"
@@ -151,7 +184,13 @@ process quantifyIsoforms {
     """
 }
 
+// Combining TSV files process
 process combiningTsvFiles {
+    """
+    Combines individual TSV files into a single summary file.
+    Input: Locations TSV files.
+    Output: Combined TSV file.
+    """
     label "smallJob"
 
     publishDir "${params.outdir}/reference", mode: 'copy', pattern: "${params.phred_score}_${params.q_score}_locations.tsv"
@@ -177,10 +216,15 @@ process combiningTsvFiles {
 
     EOF
     /$
-
 }
 
+// Reads analysis process
 process readsAnalysis {
+    """
+    Performs quality control and generates QC metrics for the reads.
+    Input: Combined TSV file.
+    Output: QC metrics and plots.
+    """
     executor = "local"
 
     publishDir "${params.outdir}/QC_metrics", mode: 'copy'
@@ -199,7 +243,13 @@ process readsAnalysis {
     """
 }
 
+// Condition files creation process
 process makeconditionfiles {
+    """
+    Creates condition-specific files for differential analysis.
+    Input: Combined TSV file.
+    Output: Condition-specific files and summary TSV.
+    """
     executor = "local"
 
     input:
@@ -264,7 +314,13 @@ process makeconditionfiles {
     /$
 }
 
+// Differential analysis process
 process liqaDiff {
+    """
+    Performs differential isoform expression analysis using LIQA.
+    Input: Condition-specific files.
+    Output: Differential analysis results.
+    """
     label "liqaDiff"
 
     publishDir "${params.outdir}/results", mode: 'copy', pattern: "${cell_line}_results_file" 
@@ -281,7 +337,13 @@ process liqaDiff {
         """
 }
 
+// GO analysis process
 process goAnalysis {
+    """
+    Performs Gene Ontology (GO) analysis and generates visualizations.
+    Input: Differential analysis results.
+    Output: GO analysis results and plots.
+    """
     label "smallJob"
 
     publishDir "${params.outdir}/Go_analysis", mode: 'copy' 
@@ -351,9 +413,10 @@ Channel
     .map { row -> tuple( row.sample_id,row.barcode,row.cell_line,row.condition,row.replicate,row.fastq_dir ) }
     .set { data_ch }
 
-
 workflow {
-
+    """
+    Main workflow that orchestrates the execution of all processes.
+    """
     if (params.basecalling == true) {
         fast5_ch = Channel.fromPath(params.fast5)
         fastq_ch = basecalling(fast5_ch)
